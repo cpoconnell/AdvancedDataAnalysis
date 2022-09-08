@@ -1,0 +1,28 @@
+---
+title: "GitActivitiesCOConnell08Sept2022"
+author: "Caitlin O'Connell"
+date: "9/8/2022"
+output: html_document
+---
+
+## Open packages
+```{r}
+library("haven")
+library("tidyverse")
+```
+
+## Import the data
+```{r}
+Diabetes_Atlas <- read_csv("https://raw.githubusercontent.com/cpoconnell/AdvancedDataAnalysis/main/DiabetesAtlasData.csv")
+```
+
+## Highest Diabetes Rate
+```{r}
+# finding the highest diabetes rate and assigning to the object entited highest_rate
+highest_rate <- max(Diabetes_Atlas$'Diagnosed Diabetes Percentage', na.rm = TRUE)
+
+# creating a data set filtering for the county with the highest diabetes rate
+country_highest <- Diabetes_Atlas %>%
+  filter(`Diagnosed Diabetes Percentage` == highest_rate)
+```
+
