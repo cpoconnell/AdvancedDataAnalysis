@@ -25,6 +25,8 @@ table(titanic$Pclass, useNA = "always")
 age_by_pclass <- titanic %>%
   group_by(Pclass) %>%
   summarise(median.age = median(Age))
+
+#printing dataframe
 age_by_pclass
 
 ```
@@ -34,10 +36,15 @@ age_by_pclass
   ggplot(data = titanic, aes(x = as.factor(Pclass), y = Age)) +
   geom_boxplot(aes(fill = as.factor(Pclass))) +
   labs(x = "Passenger Class", y = "Age in years", title = "Boxplot of Age by Passenger Class") + 
-  #theme_minimal()
- theme(legend.position = "null",
-       #panel.background = element_blank(),
-       #panel.grid.major = element_line(color = "grey")
+  theme(legend.position = "null"
        )
 ```
+
+## Saving plot
+```{r}
+# Defaults to last plot displayed.
+ggsave(filename = "midtermQ3plot.png",
+       width = 4, height = 4, units = "in", bg="white") 
+```
+
 
