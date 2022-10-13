@@ -1,0 +1,43 @@
+---
+title: "ADA_Midterm"
+author: "Caitlin O'Connell"
+date: '2022-10-13'
+output: html_document
+---
+
+## Load packages and open libraries 
+```{r, echo=TRUE, message = F}
+pacman::p_load(dplyr, readr, ggplot2) 
+
+```
+
+## a) Import titanic dataset located at "https://github.com/kijohnson/Data" calling the dataframe titanic
+```{r}
+titanic <- read_csv("https://raw.githubusercontent.com/kijohnson/Data/main/titanic.csv")
+```
+
+## b) determining the median age for by passenger class
+```{r}
+# determining how many passenger classes are in the dataset
+table(titanic$Pclass, useNA = "always")
+
+# calculating median age
+age_by_pclass <- titanic %>%
+  group_by(Pclass) %>%
+  summarise(median.age = median(Age))
+age_by_pclass
+
+```
+
+## c) Create a plot that shows medians, spread of data, and outliers for the continuous variable age according to passenger class
+```{r}
+  ggplot(data = titanic, aes(x = as.factor(Pclass), y = Age)) +
+  geom_boxplot(aes(fill = as.factor(Pclass))) +
+  labs(x = "Passenger Class", y = "Age in years", title = "Boxplot of Age by Passenger Class") + 
+  #theme_minimal()
+ theme(legend.position = "null",
+       #panel.background = element_blank(),
+       #panel.grid.major = element_line(color = "grey")
+       )
+```
+
