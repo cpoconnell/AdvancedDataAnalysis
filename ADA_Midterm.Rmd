@@ -21,6 +21,9 @@ titanic <- read_csv("https://raw.githubusercontent.com/kijohnson/Data/main/titan
 # determining how many passenger classes are in the dataset
 table(titanic$Pclass, useNA = "always")
 
+# looking at Age values to ensure all look reasonable
+table(titanic$Age, useNA = "always")
+
 # calculating median age
 age_by_pclass <- titanic %>%
   group_by(Pclass) %>%
@@ -48,3 +51,18 @@ ggsave(filename = "midtermQ3plot.png",
 ```
 
 
+## Calculating percentage of males and females per passenger class
+```{r}
+# first checking summary of variable sex
+table(titanic$Sex, useNA = "always")
+
+# calculating percentage of males and females per passenger class
+sex_by_pclass <- titanic %>%
+  group_by(Pclass, Sex) %>%
+  count() %>% 
+  group_by(Pclass) %>% 
+  mutate(percentage = 100*n/sum(n))
+
+# printing dataframe
+sex_by_pclass
+```
