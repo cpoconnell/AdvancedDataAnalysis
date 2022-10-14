@@ -25,12 +25,7 @@ table(titanic$Pclass, useNA = "always")
 table(titanic$Age, useNA = "always")
 
 # calculating median age
-age_by_pclass <- titanic %>%
-  group_by(Pclass) %>%
-  summarise(median.age = median(Age))
-
-#printing dataframe
-age_by_pclass
+by(titanic$Age, titanic$Pclass, median)
 
 ```
 
@@ -65,4 +60,5 @@ sex_by_pclass <- titanic %>%
 
 # printing dataframe
 sex_by_pclass
+
 ```
