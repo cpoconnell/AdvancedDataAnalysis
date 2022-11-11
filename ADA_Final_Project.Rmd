@@ -1,0 +1,218 @@
+---
+title: "ADA_Project"
+author: "Caitlin O'Connell"
+date: "9/25/2022"
+output: html_document
+---
+
+## Load and Open packages
+```{r}
+pacman::p_load(writexl, ggplot2, tidyverse, table1, nhanesA)
+devtools::install_github("silentspringinstitute/RNHANES")
+library(RNHANES)
+```
+
+## Importing data sets from NHANES website (https://wwwn.cdc.gov/nchs/nhanes/continuousnhanes/default.aspx?BeginYear=2017)
+```{r}
+# physical activity questions with demographics
+nhanes_pa <- nhanes_load_data("PAQ_J", "2017-2018", demographics = TRUE) 
+# diabetes questionnaire
+nhanes_diabetes <- nhanes_load_data("DIQ_J", "2017-2018") 
+# weight questionnaire
+nhanes_weight <- nhanes_load_data("WHQ_J", "2017-2018") 
+# sleep questionnaire
+nhanes_sleep <- nhanes_load_data("SLQ_J", "2017-2018") 
+# health care utilization questionnaire
+nhanes_health <- nhanes_load_data("HUQ_J", "2017-2018") 
+# disability questionnaire
+nhanes_disability <- nhanes_load_data("DLQ_J", "2017-2018") 
+# occupation questionnaire
+nhanes_occupation <- nhanes_load_data("OCQ_J", "2017-2018") 
+# physical functioning questionnaire
+nhanes_physfunc <- nhanes_load_data("PFQ_J", "2017-2018") 
+# smoking questionnaire
+nhanes_smoke <- nhanes_load_data("SMQ_J", "2017-2018") 
+```
+
+## Merging datasets together
+```{r}
+# merging diabetes with physical activity that includes demographics
+merged_file <- merge(nhanes_diabetes,nhanes_pa, by = "SEQN")
+# joining disability
+merged_file <- left_join(merged_file, nhanes_disability, by="SEQN")
+# adding health
+merged_file <- left_join(merged_file, nhanes_health, by="SEQN")
+# adding occupation
+merged_file <- left_join(merged_file, nhanes_occupation, by="SEQN")
+# adding physical functioning
+merged_file <- left_join(merged_file, nhanes_physfunc, by="SEQN")
+# adding sleep
+merged_file <- left_join(merged_file, nhanes_sleep, by="SEQN")
+# adding smoking
+merged_file <- left_join(merged_file, nhanes_smoke, by="SEQN")
+# adding weight
+merged_file <- left_join(merged_file, nhanes_weight, by="SEQN")
+```
+
+## Selecting variables of interest
+```{r}
+# selecting variables needed for analysis: 
+# participant id, SEQN
+# gender, age, race/ethnicity, education status, household income
+# diabetes status, DIQ010
+# physical activity variables, PAQ635
+# DLQ050 - difficulty walking 
+# DLQ140 - How often do you feel depressed?
+# HUQ010 - General Health condition
+# OCQ670 - Overall work schedule past 3 months
+# OCD390G - Kind of work you have done the longest
+# SLD012 - Sleep hours - weekdays or workdays
+# SMQ020 - Smoked at least 100 cigarettes in life
+# SMQ040 - Do you now smoke cigarettes?
+# WHD010 - Current self-reported height (inches)
+# WHD020 - Current self-reported weight (pounds)
+# HSD010 - Self-reported health status
+
+nhanes_small <- merged_file %>%
+  select(SEQN, RIAGENDR, RIDAGEYR, RIDRETH3, DMDEDUC2, DMDEDUC3, INDHHIN2, DIQ010, PAQ605, PAQ635, PAD645, PAQ650, PAQ655, PAD660, PAQ665,PAQ670, PAD675, PAD680, DLQ050, DLQ140, OCQ670, OCD150, OCD390G, SLD012, SMQ020, SMQ040, WHD010, WHD020, HUQ010)
+```
+
+## Data Management
+```{r}
+nhanes_clean <- nhanes_small %>%
+  mutate(diabetes = case_when(DIQ010 == 1 ~ 1,
+                              DIQ010 == 2 ~ 0,
+                              DIQ010 == 3 ~ 0,
+                              DIQ010 == 7 ~ NA_real_,
+                              DIQ010 == 9 ~ NA_real_)) %>%
+  mutate(diabetes = factor(diabetes, c(0:1), c("No", "Yes or borderline"))) %>%
+  mutate(act_transport = case_when(PAQ635 == 1 ~ 1,
+                                   PAQ635 == 2 ~ 0)) %>%
+  mutate(act_transport = factor(act_transport, c(0:1), c("No", "Yes"))) %>%
+  mutate(sex = case_when(RIAGENDR == 1 ~ 0,
+                         RIAGENDR == 2 ~ 1)) %>%
+  mutate(sex = factor(sex, c(0:1), c("Male", "Female"))) %>%
+  mutate(race = case_when(RIDRETH3 == 1 ~ 1,
+                          RIDRETH3 == 2 ~ 2,
+                          RIDRETH3 == 3 ~ 0,
+                          RIDRETH3 == 4 ~ 3,
+                          RIDRETH3 == 6 ~ 4,
+                          RIDRETH3 == 7 ~ 5)) %>%
+  mutate(race = factor(race, c(0:5), c("Non-Hispanic White","Mexican American","Other Hispanic","Non-Hispanic Black","Non-Hispanic Asian", "Other/Multi-Racial"))) %>%
+  mutate(educat = case_when(DMDEDUC2 == 1 ~ 0,
+                            DMDEDUC2 == 2 ~ 1,
+                            DMDEDUC2 == 3 ~ 2,
+                            DMDEDUC2 == 4 ~ 3,
+                            DMDEDUC2 == 5 ~ 4,
+                            DMDEDUC2 == 7 ~ NA_real_,
+                            DMDEDUC2 == 9 ~ NA_real_,
+                            DMDEDUC3 == 9 ~ 1,
+                            DMDEDUC3 == 10 ~ 1,
+                            DMDEDUC3 == 11 ~ 1,
+                            DMDEDUC3 == 12 ~ 1,
+                            DMDEDUC3 == 13 ~ 2,
+                            DMDEDUC3 == 14 ~ 2,
+                            DMDEDUC3 == 15 ~ 3,
+                            DMDEDUC3 == 66 ~ 0)) %>%
+  mutate(educat = factor(educat, c(0:4), c("less than 9th grade","9th-12th grade (no diploma)","High school/GED","Some college","College or above"))) %>%
+  mutate(income = case_when(INDHHIN2 == 15 ~ 0,
+                            INDHHIN2 == 14 ~ 1,
+                            INDHHIN2 == 13 ~ 8,
+                            INDHHIN2 == 12 ~ NA_real_,
+                            INDHHIN2 == 10 ~ 2,
+                            INDHHIN2 == 9 ~ 3,
+                            INDHHIN2 == 8 ~ 4,
+                            INDHHIN2 == 7 ~ 5,
+                            INDHHIN2 == 6 ~ 6,
+                            INDHHIN2 == 5 ~ 7,
+                            INDHHIN2 == 4 ~ 8,
+                            INDHHIN2 == 3 ~ 8,
+                            INDHHIN2 == 2 ~ 8,
+                            INDHHIN2 == 1 ~ 8,
+                            INDHHIN2 == 77 ~ NA_real_,
+                            INDHHIN2 == 99 ~ NA_real_)) %>%
+  mutate(income = factor(income, c(0:8),c("$100,000 and over",
+                                          "$75,000 - $99,999",
+                                          "$65,000 - $74,999",
+                                          "$55,000 - $64,999",
+                                          "$45,000 - $54,999",
+                                          "$35,000 - $44,999",
+                                          "$25,000 - $34,999",
+                                          "$20,000 - $24,999",
+                                          "Under $20,000"))) %>%
+  mutate(health_status = case_when(HUQ010 == 1 ~ 0,
+                                   HUQ010 == 2 ~ 1,
+                                   HUQ010 == 3 ~ 2,
+                                   HUQ010 == 4 ~ 3,
+                                   HUQ010 == 5 ~ 4,
+                                   HUQ010 == 7 ~ NA_real_,
+                                   HUQ010 == 9 ~ NA_real_)) %>%
+  mutate(health_status = factor(health_status, c(0:4), c("Excellent", "Very Good", "Good", "Fair", "Poor"))) %>%
+  mutate(diff_walk = case_when(DLQ050 == 1 ~ 1,
+                               DLQ050 == 2 ~ 0,
+                               DLQ050 == 7 ~ NA_real_,
+                               DLQ050 == 9 ~ NA_real_)) %>%
+  mutate(diff_walk = factor(diff_walk, c(0:1), c("No", "Yes"))) %>%
+  mutate(depress = case_when(DLQ140 == 1 ~ 0,
+                             DLQ140 == 2 ~ 1,
+                             DLQ140 == 3 ~ 2,
+                             DLQ140 == 4 ~ 3,
+                             DLQ140 == 5 ~ 4,
+                             DLQ140 == 7 ~ NA_real_,
+                             DLQ140 == 9 ~ NA_real_)) %>%
+  mutate(depress = factor(depress, c(0:4), c("Daily","Weekly","Monthly", "A few times a year", "Never"))) %>%
+  mutate(work_sch = case_when(OCQ670 == 1 ~ 0,
+                              OCQ670 == 2 ~ 1,
+                              OCQ670 == 3 ~ 2,
+                              OCQ670 == 5 ~ 3,
+                              OCD150 == 3 ~ 4,
+                              OCD150 == 4 ~ 4,
+                              OCQ670 == 7 ~ NA_real_,
+                              OCQ670 == 9 ~ NA_real_)) %>%
+  mutate(work_sch = factor(work_sch, c(0:4), c("Traditional (9to5)","Evenings or Nights","Early morning", "Variable", "Not working"))) %>%
+  mutate(smoker = if_else(SMQ020 == 2, 0,
+                           if_else(SMQ020 == 1 & SMQ040 == 1, 2,
+                                   if_else(SMQ020 == 1 & SMQ040 == 2, 2,
+                                           if_else(SMQ020 == 1 & SMQ040 == 3, 1, NULL))))) %>%
+  mutate(smoker = factor(smoker, c(0:2), c("Nonsmoker", "Former", "Current"))) %>%
+  mutate(mod_plus_vig = PAQ655 + PAQ670) %>%
+  mutate(phys_act = if_else(PAQ650 == 2 & PAQ665 == 2, 0,
+                              if_else(PAQ650 == 2 & PAQ665 == 1 & PAQ670 %in% c(1:2), 1,
+                              if_else(PAQ650 == 2 & PAQ665 == 1 & PAQ670 %in% c(3:5), 2,
+                              if_else(PAQ650 == 2 & PAQ665 == 1 & PAQ670 %in% c(6:7), 3,
+                              if_else(PAQ650 == 1 & PAQ665 == 2 & PAQ655 %in% c(1:2), 1,
+                              if_else(PAQ650 == 1 & PAQ665 == 2 & PAQ655 %in% c(3:5), 2,
+                              if_else(PAQ650 == 1 & PAQ665 == 2 & PAQ655 %in% c(6:7), 3,
+                                      if_else(PAQ650 == 1 & PAQ665 == 1 & mod_plus_vig %in% c(1:2), 1,
+                                      if_else(PAQ650 == 1 & PAQ665 == 1 & mod_plus_vig %in% c(3:5), 2,
+                                      if_else(PAQ650 == 1 & PAQ665 == 1 & mod_plus_vig %in% c(6:7), 3,
+                                              if_else(PAQ650 == 1 & PAQ655 %in% c(1:2), 1,
+                                              if_else(PAQ650 == 1 & PAQ655 %in% c(3:5), 2,
+                                              if_else(PAQ650 == 1 & PAQ655 %in% c(6:7), 3, 
+                                              if_else(PAQ665 == 1 & PAQ670 %in% c(1:2), 1,
+                                              if_else(PAQ665 == 1 & PAQ670 %in% c(3:5), 2,
+                                              if_else(PAQ665 == 1 & PAQ670 %in% c(6:7), 3,NULL))))))))))))))))) %>%
+  mutate(phys_act = factor(phys_act, c(0:3), c("None","1 to 2 days", "3 to 5 day", "6 to 7 days"))) %>%
+  mutate(PAD680 = na_if(PAD680, 9999)) %>%
+  mutate(WHD010 = na_if(WHD010, 9999)) %>%
+  mutate(WHD010 = na_if(WHD010, 7777)) %>%
+  mutate(WHD020 = na_if(WHD020, 9999)) %>%
+  mutate(WHD020 = na_if(WHD020, 7777)) %>%
+  mutate(bmi = (WHD020/(WHD010*WHD010))*703) %>%
+  mutate(sleep_time = case_when(SLD012 == 2 ~ 0,
+                                SLD012 %in% c(3,3.5,4,4.5) ~ 0,
+                                SLD012 %in% c(5,5.5,6,6.5) ~ 1,
+                                SLD012 %in% c(7,7.5,8,8.5) ~ 2,
+                                SLD012 %in% c(9,9.5,10,10.5) ~ 3,
+                                SLD012 %in% c(11,11.5,12,12.5,13,13.5,14) ~ 4)) %>%
+  mutate(sleep_time = factor(sleep_time, c(0:4), c("less than 4.5 hrs","5-6.5 hrs","7-8.5 hrs","9-10.5 hrs","11 hrs or more")))
+  
+```
+
+## Defining Cohort
+```{r}
+cohort <- nhanes_clean %>%
+  drop_na(diabetes)
+  
+```
+
