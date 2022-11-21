@@ -250,11 +250,19 @@ table(nhanes_clean$PAQ665, nhanes_clean$phys_act, useNA = "always")
 table(nhanes_clean$PAQ670, nhanes_clean$phys_act, useNA = "always")
 table(nhanes_clean$PAQ655, nhanes_clean$phys_act, useNA = "always")
 table(nhanes_clean$SLD012, nhanes_clean$sleep_time, useNA = "always")
+
+# data exploration
+summary(nhanes_clean$WHD010)
+summary(nhanes_clean$WHD020)
+summary(nhanes_clean$bmi)
+summary(nhanes_clean$sed_time)
+summary(nhanes_clean$age)
 ```
 
 ## Defining Cohort
 ```{r}
 # dropping those without diabetes status
+# selecting clean variables for analysis
 cohort <- nhanes_clean %>%
   drop_na(diabetes) %>%
   select(SEQN, age, sex, race, educat, income, health_status, diff_walk, work_sch, smoker, phys_act, bmi, sleep_time, sed_time, diabetes, act_transport)
@@ -485,6 +493,8 @@ write.xlsx(sheets, file="analysis_tables.xlsx", keepNA=TRUE, overwrite=TRUE, row
 vif(model2)
 ```
 
+Meets multicolinearity assumption.
+
 ## Checking influential observations
 ```{r}
 # Plot Cooks's Distance
@@ -494,14 +504,22 @@ plot(model2, which = 4, id.n = 3, col="red")
 model2.data <- augment(model2) %>%  
   mutate(index = 1:n()) 
 
+# looking at first couple of rows of data
 head(model2.data)
+
+# defines cutoff variable
+cuttoff <- mean(model2.data$.cooksd)*3 
+# looking at observations with cook's distance above cutoff
+View(model2.data %>% filter(.cooksd>cuttoff))
 ```
 
 
 ## Effect Modification by Sex
 ```{r}
+# model with interaction term between sex and active transport
 model_em <- glm(diabetes ~ act_transport + age_cat2 + sex + race + income + health_status2 + diff_walk + work_sch + smoker + phys_act + bmi_cat2 + sleep_time + sed_time_cat + sex*act_transport, data=cohort_complete, family="binomial")
 
+# comparing models
 lrtest(model_em,model2)
 
 ```
@@ -510,14 +528,17 @@ The likelihood ratio test is not significant (p=0.2689). Therefore, there is no 
 
 ## Looking at fasting glucose 
 ```{r}
+# adding glucose information
 cohort_complete_glu <- left_join(cohort_complete,nhanes_glucose, by = "SEQN")
 
+# filtering out those without diabetes and no fasting glucose value
 diabetes_cohort <- cohort_complete_glu %>% filter(diabetes == "Yes") %>% drop_na(LBXGLU)
 
 # calculating mean glucose by active transport status
 by(diabetes_cohort$LBXGLU, diabetes_cohort$act_transport, mean)
 by(diabetes_cohort$LBXGLU, diabetes_cohort$act_transport, median)
 
+# filtering out those with diabetes and no fasting glucose
 nondiabetes_cohort <- cohort_complete_glu %>% filter(diabetes == "No") %>% drop_na(LBXGLU)
 
 # calculating mean glucose by active transport status
@@ -525,16 +546,19 @@ by(nondiabetes_cohort$LBXGLU, nondiabetes_cohort$act_transport, mean)
 by(nondiabetes_cohort$LBXGLU, nondiabetes_cohort$act_transport, median)
 ```
 
-## Looking at fasting glucose 
+## Looking at A1C 
 ```{r}
+# adding a1c information
 cohort_complete_a1c <- left_join(cohort_complete,nhanes_a1c, by = "SEQN")
 
+# filtering out those without diabetes and no A1C information
 diabetes_cohort <- cohort_complete_a1c %>% filter(diabetes == "Yes") %>% drop_na(LBXGH)
 
 # calculating mean glucose by active transport status
 by(diabetes_cohort$LBXGH, diabetes_cohort$act_transport, mean)
 by(diabetes_cohort$LBXGH, diabetes_cohort$act_transport, median)
 
+# filtering out those with diabetes and no A1C information
 nondiabetes_cohort <- cohort_complete_a1c %>% filter(diabetes == "No") %>% drop_na(LBXGH)
 
 # calculating mean glucose by active transport status
@@ -549,7 +573,8 @@ by(nondiabetes_cohort$LBXGH, nondiabetes_cohort$act_transport, median)
 (count(cohort) - count(cohort_complete))/count(cohort)
 
 # creating dataframe for multiple imputation
-# dropping those without diabetes status
+# dropping those without diabetes status or active transport information
+# selecting variables needed for multiple imputation
 cohort_imp <- nhanes_clean %>%
   drop_na(diabetes, act_transport) %>%
   select(SEQN, age, sex, race, educat, income, health_status, diff_walk, work_sch, smoker, phys_act, WHD010, WHD020, sleep_time, sed_time, diabetes, act_transport, income_underover)
@@ -668,6 +693,7 @@ summary(model_imp)
 
 pool(model_imp) # pool regression coefficients and standard errors using pool function
 
+# creating data frame with odds ratios and confidence intervals
 DF_imp <- summary(pool(model_imp))
 DF_imp$OR <- exp(DF_imp$estimate)
 DF_imp$lower95 <- exp(DF_imp$estimate - 1.96*DF_imp$std.error)
@@ -681,9 +707,11 @@ write.xlsx(DF_imp, file="imputed_analysis_tables.xlsx", keepNA=TRUE, overwrite=T
 
 #### Effect Modification by sex
 ```{r}
+# model with interaction term between sex and active transport
 model_imp_em <- with(imp2, glm(diabetes ~ act_transport + age_cat2 + sex + race + income + health_status2 + diff_walk + work_sch + smoker + phys_act + bmi_cat2 + sleep_time + sed_time_cat + sex*act_transport, family="binomial"))
 
-D1(model_imp_em,model_imp)
+# comparing models with likelihood-ratio test statistic
+D3(model_imp_em,model_imp)
 ```
 
-
+The p-value of likelihood-ratio test statistic is non-significant (p=0.083). Therefore, no significant effect modification by sex. 
