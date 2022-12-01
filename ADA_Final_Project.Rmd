@@ -5,6 +5,16 @@ date: "9/25/2022"
 output: html_document
 ---
 
+TITLE.  The association between active transportation and diabetes in adults: a cross-sectional study of the 2017-2018 National Health and Nutrition Examination Survey
+
+OBJECTIVE.  
+Primary objective:
+a.	Determine whether active transportation is associated with diabetes
+Secondary objective:
+b.	Determine whether sex modifies the association between active transportation and diabetes status
+
+DATA SOURCE. NHANES 2017-2018 cycle (https://wwwn.cdc.gov/nchs/nhanes/continuousnhanes/default.aspx?BeginYear=2017)
+
 ## Load and Open packages
 ```{r}
 pacman::p_load(openxlsx, ggplot2, tidyverse, table1, nhanesA, VIM, mice, lattice, odds.n.ends, lmtest, broom, car)
@@ -14,7 +24,7 @@ library(RNHANES)
 # openxlsx used to write excel documents for export
 # ggplot2 used to visually depict the association before running the analysis
 # tidyverse used to do data management
-# table1 used to generate descriptive statistics of cohort
+# table1 used to generate descriptive statistics of study population
 # nhanesA and RHANES used to import the data from RNHANES
 # VIM used for patterns within the missing data
 # mice used for multiple imputation of missing data
@@ -46,6 +56,7 @@ nhanes_physfunc <- nhanes_load_data("PFQ_J", "2017-2018")
 # smoking questionnaire
 nhanes_smoke <- nhanes_load_data("SMQ_J", "2017-2018") 
 
+# data for exploration post analysis
 # A1C
 nhanes_a1c <- nhanes_load_data("GHB_J", "2017-2018")
 # fasting glucose
@@ -56,7 +67,7 @@ nhanes_glucose <- nhanes_load_data("GLU_J","2017-2018")
 ```{r}
 # merging diabetes with physical activity that includes demographics
 merged_file <- merge(nhanes_diabetes,nhanes_pa, by = "SEQN")
-# joining disability
+# adding disability
 merged_file <- left_join(merged_file, nhanes_disability, by="SEQN")
 # adding health
 merged_file <- left_join(merged_file, nhanes_health, by="SEQN")
@@ -79,18 +90,18 @@ merged_file <- left_join(merged_file, nhanes_weight, by="SEQN")
 # gender (RIAGENDER), age (RIDAGEYR), race/ethnicity (RIDRETH3), education status (DMDEDUC2, DMDEDUC3), household income (INDHHIN2)
 # diabetes status, DIQ010
 # active transport variable, PAQ635
-# physical activity variables, PAQ605, PAQ610, PAQ620, PAQ625, PAD645, PAQ650, PAQ655, PAD660, PAQ665,PAQ670, PAD675, 
+# physical activity variables, PAQ605, PAQ610, PAQ620, PAQ625, PAD645, PAQ650, PAQ655, PAD660, PAQ665, PAQ670, PAD675 
 # sedentary time, PAD680
-# DLQ050 - difficulty walking 
-# DLQ140 - How often do you feel depressed?
-# HUQ010 - General Health condition
-# OCQ670 - Overall work schedule past 3 months
-# OCD390G - Kind of work you have done the longest
-# SLD012 - Sleep hours - weekdays or workdays
-# SMQ020 - Smoked at least 100 cigarettes in life
-# SMQ040 - Do you now smoke cigarettes?
-# WHD010 - Current self-reported height (inches)
-# WHD020 - Current self-reported weight (pounds)
+# difficulty walking - DLQ050 
+# How often do you feel depressed? - DLQ140
+# Self-reported health status - HUQ010
+# Overall work schedule past 3 months - OCQ670
+# Kind of work you have done the longest - OCD390G
+# Sleep hours - weekdays or workdays - SLD012
+# Smoked at least 100 cigarettes in life - SMQ020
+# Do you now smoke cigarettes? - SMQ040
+# Current self-reported height (inches) - WHD010
+# Current self-reported weight (pounds) - WHD020
 
 nhanes_small <- merged_file %>%
   select(SEQN, RIAGENDR, RIDAGEYR, RIDRETH3, DMDEDUC2, DMDEDUC3, INDHHIN2, DIQ010, PAQ605, PAQ635, PAD645, PAQ650, PAQ655, PAD660, PAQ665,PAQ670, PAD675, PAD680, DLQ050, DLQ140, OCQ670, OCD150, OCD390G, SLD012, SMQ020, SMQ040, WHD010, WHD020, HUQ010, PAQ610, PAQ620, PAQ625)
@@ -101,7 +112,7 @@ nhanes_small <- merged_file %>%
 nhanes_clean <- nhanes_small %>%
   mutate(diabetes = case_when(DIQ010 == 1 ~ 1,
                               DIQ010 == 2 ~ 0,
-                              DIQ010 == 3 ~ 0,
+                              DIQ010 == 3 ~ 0, # borderline classified with No
                               DIQ010 == 7 ~ NA_real_,
                               DIQ010 == 9 ~ NA_real_)) %>%
   mutate(diabetes = factor(diabetes, c(0:1), c("No", "Yes"))) %>%
@@ -125,6 +136,7 @@ nhanes_clean <- nhanes_small %>%
                             DMDEDUC2 == 5 ~ 4,
                             DMDEDUC2 == 7 ~ NA_real_,
                             DMDEDUC2 == 9 ~ NA_real_,
+                            DMDEDUC3 %in% c(0:8) ~ 0,
                             DMDEDUC3 == 9 ~ 1,
                             DMDEDUC3 == 10 ~ 1,
                             DMDEDUC3 == 11 ~ 1,
@@ -132,8 +144,7 @@ nhanes_clean <- nhanes_small %>%
                             DMDEDUC3 == 13 ~ 2,
                             DMDEDUC3 == 14 ~ 2,
                             DMDEDUC3 == 15 ~ 3,
-                            DMDEDUC3 == 66 ~ 0,
-                            DMDEDUC3 %in% c(0:8) ~ 0)) %>%
+                            DMDEDUC3 == 66 ~ 0)) %>%
   mutate(educat = factor(educat, c(0:4), c("less than 9th grade","9th-12th grade (no diploma)","High school/GED","Some college","College or above"))) %>%
   mutate(income = case_when(INDHHIN2 == 15 ~ 0,
                             INDHHIN2 == 14 ~ 1,
@@ -182,21 +193,26 @@ nhanes_clean <- nhanes_small %>%
                              DLQ140 == 7 ~ NA_real_,
                              DLQ140 == 9 ~ NA_real_)) %>%
   mutate(depress = factor(depress, c(0:4), c("Daily","Weekly","Monthly", "A few times a year", "Never"))) %>%
-  mutate(work_sch = case_when(OCQ670 == 1 ~ 0,
-                              OCQ670 == 2 ~ 1,
-                              OCQ670 == 3 ~ 2,
-                              OCQ670 == 5 ~ 3,
+  mutate(work_sch = case_when(OCD150 %in% c(1,2) & OCQ670 == 1 ~ 0,
+                              OCD150 %in% c(1,2) & OCQ670 == 2 ~ 1,
+                              OCD150 %in% c(1,2) & OCQ670 == 3 ~ 2,
+                              OCD150 %in% c(1,2) & OCQ670 == 5 ~ 3,
                               OCD150 == 3 ~ 4,
                               OCD150 == 4 ~ 4,
-                              OCQ670 == 7 ~ NA_real_,
-                              OCQ670 == 9 ~ NA_real_)) %>%
+                              OCD150 %in% c(7,9) ~ NA_real_,
+                              OCD150 %in% c(1,2) & OCQ670 == 7 ~ NA_real_,
+                              OCD150 %in% c(1,2) & OCQ670 == 9 ~ NA_real_)) %>%
   mutate(work_sch = factor(work_sch, c(0:4), c("Traditional (9to5)","Evenings or Nights","Early morning", "Variable", "Not working"))) %>%
   mutate(smoker = if_else(SMQ020 == 2, 0,
                            if_else(SMQ020 == 1 & SMQ040 == 1, 2,
                                    if_else(SMQ020 == 1 & SMQ040 == 2, 2,
                                            if_else(SMQ020 == 1 & SMQ040 == 3, 1, NULL))))) %>%
   mutate(smoker = factor(smoker, c(0:2), c("Nonsmoker", "Former", "Current"))) %>%
-  mutate(mod_plus_vig = PAQ655 + PAQ670) %>%
+  mutate(PAQ655 = na_if(PAQ655, 77)) %>%
+  mutate(PAQ655 = na_if(PAQ655, 99)) %>%
+  mutate(PAQ670 = na_if(PAQ670, 77)) %>%
+  mutate(PAQ670 = na_if(PAQ670, 99)) %>%
+  mutate(mod_plus_vig = if_else(PAQ650 == 1 & PAQ665 == 1, PAQ655 + PAQ670, NULL)) %>%
   mutate(phys_act = if_else(PAQ650 == 2 & PAQ665 == 2, 0,
                               if_else(PAQ650 == 2 & PAQ665 == 1 & PAQ670 %in% c(1:2), 1,
                               if_else(PAQ650 == 2 & PAQ665 == 1 & PAQ670 %in% c(3:5), 2,
@@ -206,14 +222,13 @@ nhanes_clean <- nhanes_small %>%
                               if_else(PAQ650 == 1 & PAQ665 == 2 & PAQ655 %in% c(6:7), 3,
                                       if_else(PAQ650 == 1 & PAQ665 == 1 & mod_plus_vig %in% c(1:2), 1,
                                       if_else(PAQ650 == 1 & PAQ665 == 1 & mod_plus_vig %in% c(3:5), 2,
-                                      if_else(PAQ650 == 1 & PAQ665 == 1 & mod_plus_vig %in% c(6:7), 3,
-                                              if_else(PAQ650 == 1 & PAQ655 %in% c(1:2), 1,
-                                              if_else(PAQ650 == 1 & PAQ655 %in% c(3:5), 2,
-                                              if_else(PAQ650 == 1 & PAQ655 %in% c(6:7), 3, 
-                                              if_else(PAQ665 == 1 & PAQ670 %in% c(1:2), 1,
-                                              if_else(PAQ665 == 1 & PAQ670 %in% c(3:5), 2,
-                                              if_else(PAQ665 == 1 & PAQ670 %in% c(6:7), 3, NULL))))))))))))))))) %>%
+                                      if_else(PAQ650 == 1 & PAQ665 == 1 & mod_plus_vig %in% c(6:14), 3,
+                                              NULL))))))))))) %>%
   mutate(phys_act = factor(phys_act, c(0:3), c("None","1 to 2 days", "3 to 5 days", "6 to 7 days"))) %>%
+  mutate(PAQ610 = na_if(PAQ610, 77)) %>%
+  mutate(PAQ610 = na_if(PAQ610, 99)) %>%
+  mutate(PAQ625 = na_if(PAQ625, 77)) %>%
+  mutate(PAQ625 = na_if(PAQ625, 99)) %>%
   mutate(mod_plus_vig_work = PAQ610 + PAQ625) %>%
   mutate(work_phys_act = if_else(PAQ605 == 2 & PAQ620 == 2, 0,
                                 if_else(PAQ605 == 2 & PAQ620 == 1 & PAQ625 %in% c(1:2), 1,
@@ -224,13 +239,8 @@ nhanes_clean <- nhanes_small %>%
                                 if_else(PAQ605 == 1 & PAQ620 == 2 & PAQ610 %in% c(6:7), 3,
                                         if_else(PAQ605 == 1 & PAQ620 == 1 & mod_plus_vig_work %in% c(1:2), 1,
                                         if_else(PAQ605 == 1 & PAQ620 == 1 & mod_plus_vig_work %in% c(3:5), 2,
-                                        if_else(PAQ605 == 1 & PAQ620 == 1 & mod_plus_vig_work %in% c(6:7), 3,
-                                                if_else(PAQ605 == 1 & PAQ610 %in% c(1:2), 1,
-                                                if_else(PAQ605 == 1 & PAQ610 %in% c(3:5), 2,
-                                                if_else(PAQ605 == 1 & PAQ610 %in% c(6:7), 3, 
-                                                if_else(PAQ620 == 1 & PAQ625 %in% c(1:2), 1,
-                                                if_else(PAQ620 == 1 & PAQ625 %in% c(3:5), 2,
-                                                if_else(PAQ620 == 1 & PAQ625 %in% c(6:7), 3, NULL))))))))))))))))) %>%
+                                        if_else(PAQ605 == 1 & PAQ620 == 1 & mod_plus_vig_work %in% c(6:14), 3,
+                                                NULL))))))))))) %>%
   mutate(work_phys_act = factor(work_phys_act, c(0:3), c("None","1 to 2 days", "3 to 5 days", "6 to 7 days"))) %>%
   mutate(PAD680 = na_if(PAD680, 9999)) %>%
   mutate(WHD010 = na_if(WHD010, 9999)) %>%
@@ -266,11 +276,13 @@ table(nhanes_clean$PAQ650, nhanes_clean$phys_act, useNA = "always")
 table(nhanes_clean$PAQ655, nhanes_clean$phys_act, useNA = "always")
 table(nhanes_clean$PAQ665, nhanes_clean$phys_act, useNA = "always")
 table(nhanes_clean$PAQ670, nhanes_clean$phys_act, useNA = "always")
+table(nhanes_clean$mod_plus_vig, nhanes_clean$phys_act, useNA = "always")
 table(nhanes_clean$SLD012, nhanes_clean$sleep_time, useNA = "always")
-table(nhanes_clean$PAQ605, nhanes_clean$phys_act, useNA = "always")
-table(nhanes_clean$PAQ610, nhanes_clean$phys_act, useNA = "always")
-table(nhanes_clean$PAQ620, nhanes_clean$phys_act, useNA = "always")
-table(nhanes_clean$PAQ625, nhanes_clean$phys_act, useNA = "always")
+table(nhanes_clean$PAQ605, nhanes_clean$work_phys_act, useNA = "always")
+table(nhanes_clean$PAQ610, nhanes_clean$work_phys_act, useNA = "always")
+table(nhanes_clean$PAQ620, nhanes_clean$work_phys_act, useNA = "always")
+table(nhanes_clean$PAQ625, nhanes_clean$work_phys_act, useNA = "always")
+table(nhanes_clean$mod_plus_vig_work, nhanes_clean$work_phys_act, useNA = "always")
 
 # data exploration
 summary(nhanes_clean$WHD010)
@@ -280,46 +292,46 @@ summary(nhanes_clean$sed_time)
 summary(nhanes_clean$age)
 ```
 
+
+Per DAG, only including the following variables for adjustment in model: General Health Status, age, cigarette use, difficulty walking, income, race/ethnicity, recreational physical activity, sex, sleep, work physical activity, work schedule
+![](ADA_Final_Project_DAG.png) 
+
 ## Defining Cohort
 ```{r}
 # dropping those without diabetes status
-# selecting clean variables for analysis
+# selecting clean variables for analysis per minimal covariate adjustment identified in the above DAG
 cohort <- nhanes_clean %>%
   drop_na(diabetes) %>%
-  select(SEQN, age, sex, race, educat, income, health_status, diff_walk, work_sch, smoker, phys_act, bmi, sleep_time, sed_time, diabetes, act_transport, work_phys_act)
+  select(SEQN, age, sex, race, income, health_status, diff_walk, work_sch, smoker, phys_act, sleep_time, diabetes, act_transport, work_phys_act)
   
 ```
 
 ## Table 1 of Descriptive Statistics
 ```{r}
+# adding labels for table
 label(cohort$age)<-"Age (years)"
 label(cohort$sex)<-"Sex"
 label(cohort$race)<-"Race"
-label(cohort$educat)<-"Education Level"
 label(cohort$income)<-"Income"
 label(cohort$health_status)<-"Health Status"
 label(cohort$diff_walk)<-"Has difficulty walking"
 label(cohort$work_sch)<- "Work Schedule"
 label(cohort$smoker)<-"Smoking Status"
 label(cohort$phys_act)<- "Recreational Physical Activity Level"
-label(cohort$bmi)<-"BMI (kg/m^2)"
+label(cohort$work_phys_act)<- "Work Physical Activity Level"
 label(cohort$sleep_time)<-"Weekday Sleep Amount"
-label(cohort$sed_time)<-"Sedentary Time (minutes)"
 label(cohort$act_transport)<-"Active Transportation"
 
 
-
-table1(~ age + sex + race + educat + income + health_status + diff_walk + work_sch + smoker + phys_act + bmi + sleep_time + sed_time + act_transport | diabetes, data = cohort, render.continuous = c(. = 'Mean (SD)'))
+# table by diabetes status
+table1(~ act_transport + age + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time | diabetes, data = cohort, render.continuous = c(. = 'Mean (SD)'))
 ```
-
-Per DAG, only including the following variables for adjustment in model: General Health Status, age, cigarette use, difficulty walking, income, race/ethnicity, recreational physical activity, sex, sleep, work physical activity, work schedule
-![](ADA_Final_Project_DAG.png) 
 
 ## Dropping Missing Data for covariates
 ```{r}
 # dropping NA's for covariates needed for the model 
 cohort_complete <- cohort %>%
-  drop_na(age, sex, race, income, health_status, diff_walk, work_sch, smoker, phys_act, sleep_time, work_phys_act)
+  drop_na()
 ```
 
 ## Barchart to visualize whether there is a difference in the active transportation by diabetes status.
@@ -340,6 +352,7 @@ cohort_complete %>%
   ylim(0,100)
 ```
 
+Difference are very slight. It looks like there is a slightly higher percentage of those with diabetes in the participant group that reported no active transportation. 
 
 ## Initial logistic regression model
 ```{r}
@@ -348,8 +361,9 @@ model1<- glm(diabetes ~ act_transport + age + sex + race + income + health_statu
 summary(model1) # get log results
 
 Df <- odds.n.ends(model1) # get OR results
-r<-as.data.frame(Df$`Predictor odds ratios and 95% CI`)
+r<-as.data.frame(Df$`Predictor odds ratios and 95% CI`) # create dataframe
 
+# export to excel
 sheets<-list("Results" = r)
 write.xlsx(sheets, file="analysis_tables.xlsx", keepNA=TRUE, overwrite=TRUE, rowNames = TRUE)
 ```
@@ -357,9 +371,11 @@ write.xlsx(sheets, file="analysis_tables.xlsx", keepNA=TRUE, overwrite=TRUE, row
 ### Testing Assumption of Linearity
 #### Age
 ```{r}
+# create term to test linearity
 cohort_complete <- cohort_complete %>%
-  mutate(age.times.logage = age * log(age)) # create term to test linearity
+  mutate(age.times.logage = age * log(age))
 
+# model with interaction term
 model_age <- glm(diabetes ~ act_transport + age + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + sleep_time + work_phys_act + age.times.logage, data=cohort_complete, family="binomial") 
 
 summary(model_age)
@@ -369,10 +385,8 @@ The age.times.logage is significant (p<.05). Assumption not met for age. Age mus
 
 ## Categorical Age 
 ```{r}
-# getting quantile cutoffs for sedentary time
-#quantile(cohort_complete$sed_time)
-
-cohort_complete <- cohort_complete %>%
+# defining age categories
+cohort <- cohort %>%
   mutate(age_cat = case_when(age >= 18 & age < 30 ~ 0,
                              age >= 30 & age < 40 ~ 1,
                              age >= 40 & age < 50 ~ 2,
@@ -382,88 +396,99 @@ cohort_complete <- cohort_complete %>%
          age_cat = factor(age_cat, 0:5, c("18-29","30-39","40-49","50-59","60-69","70 and older")))
 
 # checking to make sure recode worked
-summary(cohort_complete$age_cat)
-by(cohort_complete$age, cohort_complete$age_cat, summary)
+summary(cohort$age_cat)
+by(cohort$age, cohort$age_cat, summary)
 
 ```
 
-#### New Descriptives Table
+## Checking number of observations per exposure category per outcome category
 ```{r}
-label(cohort_complete$age_cat)<-"Age category (years)"
-label(cohort_complete$sex)<-"Sex"
-label(cohort_complete$race)<-"Race"
-label(cohort_complete$educat)<-"Education Level"
-label(cohort_complete$income)<-"Income"
-label(cohort_complete$health_status)<-"Health Status"
-label(cohort_complete$diff_walk)<-"Has difficulty walking"
-label(cohort_complete$work_sch)<- "Work Schedule"
-label(cohort_complete$smoker)<-"Smoking Status"
-label(cohort_complete$phys_act)<- "Recreational Physical Activity Level"
-label(cohort_complete$work_phys_act)<- "Work Physical Activity Level"
-label(cohort_complete$sleep_time)<-"Weekday Sleep Amount"
-label(cohort_complete$act_transport)<-"Active Transportation"
-
-
-
-table1(~ age_cat + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time + act_transport | diabetes, data = cohort_complete, render.continuous = c(. = 'Mean (SD)'))
+# age
+table(cohort$age_cat, cohort$diabetes, useNA = "always")
+# active transportation
+table(cohort$act_transport, cohort$diabetes, useNA = "always")
+# sex
+table(cohort$sex, cohort$diabetes, useNA = "always")
+# race
+table(cohort$race, cohort$diabetes, useNA = "always")
+# income
+table(cohort$income, cohort$diabetes, useNA = "always")
+# health status
+table(cohort$health_status, cohort$diabetes, useNA = "always")
+# difficulty walking
+table(cohort$diff_walk, cohort$diabetes, useNA = "always")
+# work schedule
+table(cohort$work_sch, cohort$diabetes, useNA = "always")
+# smoking status
+table(cohort$smoker, cohort$diabetes, useNA = "always")
+# recreational physical activity level
+table(cohort$phys_act, cohort$diabetes, useNA = "always")
+# work physical activity level
+table(cohort$work_phys_act, cohort$diabetes, useNA = "always")
+# sleep time
+table(cohort$sleep_time, cohort$diabetes, useNA = "always")
 ```
 
-Those 18-29 that have diabetes only has 7 observations. Therefore, age categories need to collapse. Excellent health status in the diabetes "yes" column only has 6 observations. Therefore, health status needs collapsed. 
+Those 18-29 that have diabetes only has 8 observations. Therefore, age categories need to collapse. 
+The rest all have at least 10 observations. 
 
 #### Collapsing categories for age_cat and health status due to few too observations
 ```{r}
-cohort_complete <- cohort_complete %>%
+cohort <- cohort %>%
   mutate(age_cat2 = case_when(age_cat %in% c("18-29","30-39") ~ 0,
                              age_cat == "40-49" ~ 1,
                              age_cat == "50-59" ~ 2,
                              age_cat == "60-69" ~ 3,
                              age_cat == "70 and older" ~ 4),
-         age_cat2 = factor(age_cat2, c(0:4),c("18-39","40-49","50-59","60-69","70 and older"))) %>%
-  mutate(health_status2 = case_when(health_status %in% c("Excellent","Very Good") ~ 0,
-                                    health_status == "Good" ~ 1,
-                                    health_status == "Fair" ~ 2,
-                                    health_status == "Poor" ~ 3),
-         health_status2 = factor(health_status2, c(0:3), c("Excellent/Very Good","Good","Fair","Poor")))
+         age_cat2 = factor(age_cat2, c(0:4),c("18-39","40-49","50-59","60-69","70 and older")))
 
 # checking recoding
-table(cohort_complete $age_cat, cohort_complete $age_cat2, useNA = "always")
-table(cohort_complete $health_status, cohort_complete $health_status2, useNA = "always")
+table(cohort$age_cat, cohort$age_cat2, useNA = "always")
 ```
 
-#### New Descriptives Table2
+#### New Descriptives Table1
 ```{r}
-label(cohort_complete$age_cat2)<-"Age category (years)"
-label(cohort_complete$sex)<-"Sex"
-label(cohort_complete$race)<-"Race"
-label(cohort_complete$educat)<-"Education Level"
-label(cohort_complete$income)<-"Income"
-label(cohort_complete$health_status2)<-"Health Status"
-label(cohort_complete$diff_walk)<-"Has difficulty walking"
-label(cohort_complete$work_sch)<- "Work Schedule"
-label(cohort_complete$smoker)<-"Smoking Status"
-label(cohort_complete$phys_act)<- "Recreational Physical Activity Level"
-label(cohort_complete$work_phys_act)<- "Work Physical Activity Level"
-label(cohort_complete$sleep_time)<-"Weekday Sleep Amount"
-label(cohort_complete$act_transport)<-"Active Transportation"
+# labels for table 1
+label(cohort$act_transport)<-"Active Transportation"
+label(cohort$age_cat2)<-"Age category (years)"
+label(cohort$sex)<-"Sex"
+label(cohort$race)<-"Race"
+label(cohort$income)<-"Income"
+label(cohort$health_status)<-"Health Status"
+label(cohort$diff_walk)<-"Has difficulty walking"
+label(cohort$work_sch)<- "Work Schedule"
+label(cohort$smoker)<-"Smoking Status"
+label(cohort$phys_act)<- "Recreational Physical Activity Level"
+label(cohort$work_phys_act)<- "Work Physical Activity Level"
+label(cohort$sleep_time)<-"Weekday Sleep Amount"
 
+table1(~ act_transport + age_cat2 + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time | diabetes, data = cohort)
 
+# first half for PowerPoint slide 1
+table1(~ act_transport + age_cat2 + sex + race + income | diabetes, data = cohort)
 
-table1(~ age_cat2 + sex + race + income + health_status2 + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time + act_transport | diabetes, data = cohort_complete, render.continuous = c(. = 'Mean (SD)'))
+# second half for PowerPoint slide 2
+table1(~ health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time | diabetes, data = cohort)
+
 ```
 
-## New model with categorical age and health status
+## New model with categorical age and collapsed health status
 ```{r}
-# model with categories
-model2<- glm(diabetes ~ act_transport + age_cat2 + sex + race + income + health_status2 + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time, data=cohort_complete, family="binomial")
+# dropping na's for complete case model
+cohort_complete <- cohort %>%
+  drop_na()
+
+# non-imputed model with new categories
+model2<- glm(diabetes ~ act_transport + age_cat2 + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time, data=cohort_complete, family="binomial")
 summary(model2) # get log results
 
 Df2 <- odds.n.ends(model2) # get OR results
 r2<-as.data.frame(Df2$`Predictor odds ratios and 95% CI`)
 
+# Exporting to excel
 sheets<-list("Inital" = r,
              "Categorical" = r2)
 write.xlsx(sheets, file="analysis_tables.xlsx", keepNA=TRUE, overwrite=TRUE, rowNames = TRUE)
-
 ```
 
 ## Checking Multicolinearity Assumption
@@ -495,14 +520,14 @@ View(model2.data %>% filter(.cooksd>cuttoff))
 ## Effect Modification by Sex
 ```{r}
 # model with interaction term between sex and active transport
-model_em <- glm(diabetes ~ act_transport + age_cat2 + sex + race + income + health_status2 + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time + sex*act_transport, data=cohort_complete, family="binomial")
+model_em <- glm(diabetes ~ act_transport + age_cat2 + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time + sex*act_transport, data=cohort_complete, family="binomial")
 
 # comparing models
 lrtest(model_em,model2)
 
 ```
 
-The likelihood ratio test is not significant (p=0.2159). Therefore, there is no effect modification by sex. 
+The likelihood ratio test is not significant (p=0.1646). Therefore, there is no effect modification by sex. 
 
 ## Looking at fasting glucose 
 ```{r}
@@ -524,6 +549,9 @@ by(nondiabetes_cohort$LBXGLU, nondiabetes_cohort$act_transport, mean)
 by(nondiabetes_cohort$LBXGLU, nondiabetes_cohort$act_transport, median)
 ```
 
+The mean fasting glucose for those with diabetes is higher among those that report active transportation (174.5) than those that do not (158.5). The median fasting glucose is higher as well (154 versus 144).
+For those that do not have diabetes, the mean fasting glucose among those that report active transportation is lower (103.4) than those that do not (105.3). The median is slightly lower as well (100.5 versus 102).
+
 ## Looking at A1C 
 ```{r}
 # adding a1c information
@@ -544,15 +572,18 @@ by(nondiabetes_cohort$LBXGH, nondiabetes_cohort$act_transport, mean)
 by(nondiabetes_cohort$LBXGH, nondiabetes_cohort$act_transport, median)
 ```
 
+The mean A1C for those with diabetes is slightly higher among those that report active transportation (7.7) than those that do not (7.3). The median fasting glucose is higher as well (7.2 versus 6.9).
+For those that do not have diabetes, the mean A1C among those that report active transportation is just slightly lower (5.5) than those that do not (5.6). The median is slightly lower as well (5.4 versus 5.5).
 
-## Multiple Imputation
+
+# Multiple Imputation
 ```{r}
 # calculating missing data percentage
 (count(cohort) - count(cohort_complete))/count(cohort)
 
 # creating dataframe for multiple imputation
-# dropping those without diabetes status or active transport information
-# selecting variables needed for multiple imputation
+## dropping those without diabetes status or active transport information
+## selecting variables needed for multiple imputation
 cohort_imp <- nhanes_clean %>%
   drop_na(diabetes, act_transport) %>%
   select(SEQN, age, sex, race, educat, income, health_status, diff_walk, work_sch, smoker, phys_act, work_phys_act, sleep_time, diabetes, act_transport, income_underover)
@@ -605,6 +636,7 @@ stripplot(x=imp, data=sleep_time~.imp, jit=TRUE,  pch=20,  xlab="1=Non-missing, 
 
 ```
 
+Imputed values and distribution seem reasonable. 
 
 #### Creating Complete dataset
 ```{r}
@@ -613,24 +645,19 @@ longimp <- mice::complete(data=imp, action="long", include = TRUE)
 
 #### Data Management
 ```{r}
+# creating the age category
 longimp <- longimp %>%
   mutate(age_cat2 = case_when(age >= 18 & age < 40 ~ 0,
                              age >= 40 & age < 50 ~ 1,
                              age >= 50 & age < 60 ~ 2,
                              age >= 60 & age < 70 ~ 3,
                              age >= 70 & age <= 80 ~ 4),
-         age_cat2 = factor(age_cat2, 0:4, c("18-39","40-49","50-59","60-69","70 and older"))) %>%
-  mutate(health_status2 = case_when(health_status %in% c("Excellent","Very Good") ~ 0,
-                                    health_status == "Good" ~ 1,
-                                    health_status == "Fair" ~ 2,
-                                    health_status == "Poor" ~ 3),
-         health_status2 = factor(health_status2, c(0:3), c("Excellent/Very Good","Good","Fair","Poor")))
+         age_cat2 = factor(age_cat2, 0:4, c("18-39","40-49","50-59","60-69","70 and older")))
 
 # checking to make sure recode worked
 summary(longimp$age_cat2)
 by(longimp$age, longimp$age_cat2, summary)
 
-table(longimp$health_status, longimp$health_status2, useNA = "always")
 ```
 
 #### Converting back to mids object
@@ -640,7 +667,7 @@ imp2 <- as.mids(longimp)
 
 #### Logistic Regression on Imputed Data
 ```{r}
-model_imp <- with(imp2, glm(diabetes ~ act_transport + age_cat2 + sex + race + income + health_status2 + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time, family="binomial"))
+model_imp <- with(imp2, glm(diabetes ~ act_transport + age_cat2 + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time, family="binomial"))
 
 summary(model_imp)
 
@@ -661,13 +688,13 @@ write.xlsx(DF_imp, file="imputed_analysis_tables.xlsx", keepNA=TRUE, overwrite=T
 #### Effect Modification by sex
 ```{r}
 # model with interaction term between sex and active transport
-model_imp_em <- with(imp2, glm(diabetes ~ act_transport + age_cat2 + sex + race + income + health_status2 + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time + sex*act_transport, family="binomial"))
+model_imp_em <- with(imp2, glm(diabetes ~ act_transport + age_cat2 + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time + sex*act_transport, family="binomial"))
 
 # comparing models with likelihood-ratio test statistic
 D3(model_imp_em,model_imp)
 ```
 
-The p-value of likelihood-ratio test statistic is non-significant (p=.142). Therefore, no significant effect modification by sex. 
+The p-value of likelihood-ratio test statistic is non-significant (p=.113). Therefore, no significant effect modification by sex. 
 
 # Figure 1
 ```{r}
