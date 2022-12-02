@@ -43,24 +43,13 @@ nhanes_pa <- nhanes_load_data("PAQ_J", "2017-2018", demographics = TRUE)
 nhanes_diabetes <- nhanes_load_data("DIQ_J", "2017-2018") 
 # weight questionnaire
 nhanes_weight <- nhanes_load_data("WHQ_J", "2017-2018") 
-# sleep questionnaire
-nhanes_sleep <- nhanes_load_data("SLQ_J", "2017-2018") 
-# health care utilization questionnaire
-nhanes_health <- nhanes_load_data("HUQ_J", "2017-2018") 
 # disability questionnaire
 nhanes_disability <- nhanes_load_data("DLQ_J", "2017-2018") 
 # occupation questionnaire
 nhanes_occupation <- nhanes_load_data("OCQ_J", "2017-2018") 
 # physical functioning questionnaire
 nhanes_physfunc <- nhanes_load_data("PFQ_J", "2017-2018") 
-# smoking questionnaire
-nhanes_smoke <- nhanes_load_data("SMQ_J", "2017-2018") 
 
-# data for exploration post analysis
-# A1C
-nhanes_a1c <- nhanes_load_data("GHB_J", "2017-2018")
-# fasting glucose
-nhanes_glucose <- nhanes_load_data("GLU_J","2017-2018")
 ```
 
 ## Merging datasets together
@@ -69,16 +58,10 @@ nhanes_glucose <- nhanes_load_data("GLU_J","2017-2018")
 merged_file <- merge(nhanes_diabetes,nhanes_pa, by = "SEQN")
 # adding disability
 merged_file <- left_join(merged_file, nhanes_disability, by="SEQN")
-# adding health
-merged_file <- left_join(merged_file, nhanes_health, by="SEQN")
 # adding occupation
 merged_file <- left_join(merged_file, nhanes_occupation, by="SEQN")
 # adding physical functioning
 merged_file <- left_join(merged_file, nhanes_physfunc, by="SEQN")
-# adding sleep
-merged_file <- left_join(merged_file, nhanes_sleep, by="SEQN")
-# adding smoking
-merged_file <- left_join(merged_file, nhanes_smoke, by="SEQN")
 # adding weight
 merged_file <- left_join(merged_file, nhanes_weight, by="SEQN")
 ```
@@ -93,18 +76,13 @@ merged_file <- left_join(merged_file, nhanes_weight, by="SEQN")
 # physical activity variables, PAQ605, PAQ610, PAQ620, PAQ625, PAD645, PAQ650, PAQ655, PAD660, PAQ665, PAQ670, PAD675 
 # sedentary time, PAD680
 # difficulty walking - DLQ050 
-# How often do you feel depressed? - DLQ140
-# Self-reported health status - HUQ010
 # Overall work schedule past 3 months - OCQ670
 # Kind of work you have done the longest - OCD390G
-# Sleep hours - weekdays or workdays - SLD012
-# Smoked at least 100 cigarettes in life - SMQ020
-# Do you now smoke cigarettes? - SMQ040
 # Current self-reported height (inches) - WHD010
 # Current self-reported weight (pounds) - WHD020
 
 nhanes_small <- merged_file %>%
-  select(SEQN, RIAGENDR, RIDAGEYR, RIDRETH3, DMDEDUC2, DMDEDUC3, INDHHIN2, DIQ010, PAQ605, PAQ635, PAD645, PAQ650, PAQ655, PAD660, PAQ665,PAQ670, PAD675, PAD680, DLQ050, DLQ140, OCQ670, OCD150, OCD390G, SLD012, SMQ020, SMQ040, WHD010, WHD020, HUQ010, PAQ610, PAQ620, PAQ625)
+  select(SEQN, RIAGENDR, RIDAGEYR, RIDRETH3, DMDEDUC2, DMDEDUC3, INDHHIN2, DIQ010, PAQ605, PAQ635, PAD645, PAQ650, PAQ655, PAD660, PAQ665,PAQ670, PAD675, PAD680, DLQ050, OCQ670, OCD150, WHD010, WHD020, PAQ610, PAQ620, PAQ625)
 ```
 
 ## Data Management
@@ -172,27 +150,11 @@ nhanes_clean <- nhanes_small %>%
                                           "$25,000 - $34,999",
                                           "$20,000 - $24,999",
                                           "Under $20,000"))) %>%
-  mutate(health_status = case_when(HUQ010 == 1 ~ 0,
-                                   HUQ010 == 2 ~ 1,
-                                   HUQ010 == 3 ~ 2,
-                                   HUQ010 == 4 ~ 3,
-                                   HUQ010 == 5 ~ 4,
-                                   HUQ010 == 7 ~ NA_real_,
-                                   HUQ010 == 9 ~ NA_real_)) %>%
-  mutate(health_status = factor(health_status, c(0:4), c("Excellent", "Very Good", "Good", "Fair", "Poor"))) %>%
   mutate(diff_walk = case_when(DLQ050 == 1 ~ 1,
                                DLQ050 == 2 ~ 0,
                                DLQ050 == 7 ~ NA_real_,
                                DLQ050 == 9 ~ NA_real_)) %>%
   mutate(diff_walk = factor(diff_walk, c(0:1), c("No", "Yes"))) %>%
-  mutate(depress = case_when(DLQ140 == 1 ~ 0,
-                             DLQ140 == 2 ~ 1,
-                             DLQ140 == 3 ~ 2,
-                             DLQ140 == 4 ~ 3,
-                             DLQ140 == 5 ~ 4,
-                             DLQ140 == 7 ~ NA_real_,
-                             DLQ140 == 9 ~ NA_real_)) %>%
-  mutate(depress = factor(depress, c(0:4), c("Daily","Weekly","Monthly", "A few times a year", "Never"))) %>%
   mutate(work_sch = case_when(OCD150 %in% c(1,2) & OCQ670 == 1 ~ 0,
                               OCD150 %in% c(1,2) & OCQ670 == 2 ~ 1,
                               OCD150 %in% c(1,2) & OCQ670 == 3 ~ 2,
@@ -203,11 +165,6 @@ nhanes_clean <- nhanes_small %>%
                               OCD150 %in% c(1,2) & OCQ670 == 7 ~ NA_real_,
                               OCD150 %in% c(1,2) & OCQ670 == 9 ~ NA_real_)) %>%
   mutate(work_sch = factor(work_sch, c(0:4), c("Traditional (9to5)","Evenings or Nights","Early morning", "Variable", "Not working"))) %>%
-  mutate(smoker = if_else(SMQ020 == 2, 0,
-                           if_else(SMQ020 == 1 & SMQ040 == 1, 2,
-                                   if_else(SMQ020 == 1 & SMQ040 == 2, 2,
-                                           if_else(SMQ020 == 1 & SMQ040 == 3, 1, NULL))))) %>%
-  mutate(smoker = factor(smoker, c(0:2), c("Nonsmoker", "Former", "Current"))) %>%
   mutate(PAQ655 = na_if(PAQ655, 77)) %>%
   mutate(PAQ655 = na_if(PAQ655, 99)) %>%
   mutate(PAQ670 = na_if(PAQ670, 77)) %>%
@@ -248,13 +205,6 @@ nhanes_clean <- nhanes_small %>%
   mutate(WHD020 = na_if(WHD020, 9999)) %>%
   mutate(WHD020 = na_if(WHD020, 7777)) %>%
   mutate(bmi = (WHD020/(WHD010*WHD010))*703) %>%
-  mutate(sleep_time = case_when(SLD012 == 2 ~ 0,
-                                SLD012 %in% c(3,3.5,4,4.5) ~ 0,
-                                SLD012 %in% c(5,5.5,6,6.5) ~ 1,
-                                SLD012 %in% c(7,7.5,8,8.5) ~ 2,
-                                SLD012 %in% c(9,9.5,10,10.5) ~ 3,
-                                SLD012 %in% c(11,11.5,12,12.5,13,13.5,14) ~ 4)) %>%
-  mutate(sleep_time = factor(sleep_time, c(0:4), c("less than 4.5 hrs","5-6.5 hrs","7-8.5 hrs","9-10.5 hrs","11 hrs or more"))) %>%
   mutate(sed_time = PAD680) %>%
   rename(age = RIDAGEYR)
 
@@ -267,17 +217,13 @@ table(nhanes_clean$DMDEDUC2, nhanes_clean$educat, useNA = "always")
 table(nhanes_clean$DMDEDUC3, nhanes_clean$educat, useNA = "always")
 table(nhanes_clean$INDHHIN2, nhanes_clean$income, useNA = "always")
 table(nhanes_clean$INDHHIN2, nhanes_clean$income_underover, useNA = "always")
-table(nhanes_clean$HUQ010, nhanes_clean$health_status, useNA = "always")
 table(nhanes_clean$DLQ050, nhanes_clean$diff_walk, useNA = "always")
-table(nhanes_clean$DLQ140, nhanes_clean$depress, useNA = "always")
 table(nhanes_clean$OCQ670, nhanes_clean$work_sch, useNA = "always")
-table(nhanes_clean$SMQ020, nhanes_clean$smoker, useNA = "always")
 table(nhanes_clean$PAQ650, nhanes_clean$phys_act, useNA = "always")
 table(nhanes_clean$PAQ655, nhanes_clean$phys_act, useNA = "always")
 table(nhanes_clean$PAQ665, nhanes_clean$phys_act, useNA = "always")
 table(nhanes_clean$PAQ670, nhanes_clean$phys_act, useNA = "always")
 table(nhanes_clean$mod_plus_vig, nhanes_clean$phys_act, useNA = "always")
-table(nhanes_clean$SLD012, nhanes_clean$sleep_time, useNA = "always")
 table(nhanes_clean$PAQ605, nhanes_clean$work_phys_act, useNA = "always")
 table(nhanes_clean$PAQ610, nhanes_clean$work_phys_act, useNA = "always")
 table(nhanes_clean$PAQ620, nhanes_clean$work_phys_act, useNA = "always")
@@ -288,13 +234,12 @@ table(nhanes_clean$mod_plus_vig_work, nhanes_clean$work_phys_act, useNA = "alway
 summary(nhanes_clean$WHD010)
 summary(nhanes_clean$WHD020)
 summary(nhanes_clean$bmi)
-summary(nhanes_clean$sed_time)
 summary(nhanes_clean$age)
 ```
 
-
-Per DAG, only including the following variables for adjustment in model: General Health Status, age, cigarette use, difficulty walking, income, race/ethnicity, recreational physical activity, sex, sleep, work physical activity, work schedule
-![](ADA_Final_Project_DAG.png) 
+## DAG
+Per DAG, only including the following variables for adjustment in model: age, difficulty walking, income, race/ethnicity, recreational physical activity, sex, work physical activity, work schedule
+![](ADA_Final_Project_DAG_2.png) 
 
 ## Defining Cohort
 ```{r}
@@ -302,7 +247,7 @@ Per DAG, only including the following variables for adjustment in model: General
 # selecting clean variables for analysis per minimal covariate adjustment identified in the above DAG
 cohort <- nhanes_clean %>%
   drop_na(diabetes) %>%
-  select(SEQN, age, sex, race, income, health_status, diff_walk, work_sch, smoker, phys_act, sleep_time, diabetes, act_transport, work_phys_act)
+  select(SEQN, age, sex, race, income, diff_walk, work_sch, phys_act, diabetes, act_transport, work_phys_act)
   
 ```
 
@@ -313,18 +258,16 @@ label(cohort$age)<-"Age (years)"
 label(cohort$sex)<-"Sex"
 label(cohort$race)<-"Race"
 label(cohort$income)<-"Income"
-label(cohort$health_status)<-"Health Status"
 label(cohort$diff_walk)<-"Has difficulty walking"
 label(cohort$work_sch)<- "Work Schedule"
-label(cohort$smoker)<-"Smoking Status"
 label(cohort$phys_act)<- "Recreational Physical Activity Level"
 label(cohort$work_phys_act)<- "Work Physical Activity Level"
-label(cohort$sleep_time)<-"Weekday Sleep Amount"
 label(cohort$act_transport)<-"Active Transportation"
+label(cohort$diabetes)<-"Diabetes Status"
 
 
 # table by diabetes status
-table1(~ act_transport + age + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time | diabetes, data = cohort, render.continuous = c(. = 'Mean (SD)'))
+table1(~ age + sex + race + income + diff_walk + work_sch + phys_act + work_phys_act + diabetes | act_transport, data = cohort, render.continuous = c(. = 'Mean (SD)'))
 ```
 
 ## Dropping Missing Data for covariates
@@ -357,7 +300,7 @@ Difference are very slight. It looks like there is a slightly higher percentage 
 ## Initial logistic regression model
 ```{r}
 # non-imputed model
-model1<- glm(diabetes ~ act_transport + age + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + sleep_time + work_phys_act, data=cohort_complete, family="binomial")
+model1<- glm(diabetes ~ act_transport + age + sex + race + income + diff_walk + work_sch + phys_act + work_phys_act, data=cohort_complete, family="binomial")
 summary(model1) # get log results
 
 Df <- odds.n.ends(model1) # get OR results
@@ -376,7 +319,7 @@ cohort_complete <- cohort_complete %>%
   mutate(age.times.logage = age * log(age))
 
 # model with interaction term
-model_age <- glm(diabetes ~ act_transport + age + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + sleep_time + work_phys_act + age.times.logage, data=cohort_complete, family="binomial") 
+model_age <- glm(diabetes ~ act_transport + age + sex + race + income + diff_walk + work_sch + phys_act + work_phys_act + age.times.logage, data=cohort_complete, family="binomial") 
 
 summary(model_age)
 ```
@@ -413,20 +356,15 @@ table(cohort$sex, cohort$diabetes, useNA = "always")
 table(cohort$race, cohort$diabetes, useNA = "always")
 # income
 table(cohort$income, cohort$diabetes, useNA = "always")
-# health status
-table(cohort$health_status, cohort$diabetes, useNA = "always")
 # difficulty walking
 table(cohort$diff_walk, cohort$diabetes, useNA = "always")
 # work schedule
 table(cohort$work_sch, cohort$diabetes, useNA = "always")
-# smoking status
-table(cohort$smoker, cohort$diabetes, useNA = "always")
 # recreational physical activity level
 table(cohort$phys_act, cohort$diabetes, useNA = "always")
 # work physical activity level
 table(cohort$work_phys_act, cohort$diabetes, useNA = "always")
-# sleep time
-table(cohort$sleep_time, cohort$diabetes, useNA = "always")
+
 ```
 
 Those 18-29 that have diabetes only has 8 observations. Therefore, age categories need to collapse. 
@@ -454,21 +392,18 @@ label(cohort$age_cat2)<-"Age category (years)"
 label(cohort$sex)<-"Sex"
 label(cohort$race)<-"Race"
 label(cohort$income)<-"Income"
-label(cohort$health_status)<-"Health Status"
 label(cohort$diff_walk)<-"Has difficulty walking"
 label(cohort$work_sch)<- "Work Schedule"
-label(cohort$smoker)<-"Smoking Status"
 label(cohort$phys_act)<- "Recreational Physical Activity Level"
 label(cohort$work_phys_act)<- "Work Physical Activity Level"
-label(cohort$sleep_time)<-"Weekday Sleep Amount"
 
-table1(~ act_transport + age_cat2 + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time | diabetes, data = cohort)
+table1(~ age_cat2 + sex + race + income + diff_walk + work_sch + phys_act + work_phys_act + diabetes | act_transport, data = cohort)
 
 # first half for PowerPoint slide 1
-table1(~ act_transport + age_cat2 + sex + race + income | diabetes, data = cohort)
+table1(~ age_cat2 + sex + race + income | act_transport, data = cohort)
 
 # second half for PowerPoint slide 2
-table1(~ health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time | diabetes, data = cohort)
+table1(~ diff_walk + work_sch + phys_act + work_phys_act + diabetes | act_transport, data = cohort)
 
 ```
 
@@ -479,7 +414,7 @@ cohort_complete <- cohort %>%
   drop_na()
 
 # non-imputed model with new categories
-model2<- glm(diabetes ~ act_transport + age_cat2 + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time, data=cohort_complete, family="binomial")
+model2<- glm(diabetes ~ act_transport + age_cat2 + sex + race + income + diff_walk + work_sch + phys_act + work_phys_act, data=cohort_complete, family="binomial")
 summary(model2) # get log results
 
 Df2 <- odds.n.ends(model2) # get OR results
@@ -489,6 +424,7 @@ r2<-as.data.frame(Df2$`Predictor odds ratios and 95% CI`)
 sheets<-list("Inital" = r,
              "Categorical" = r2)
 write.xlsx(sheets, file="analysis_tables.xlsx", keepNA=TRUE, overwrite=TRUE, rowNames = TRUE)
+
 ```
 
 ## Checking Multicolinearity Assumption
@@ -515,22 +451,25 @@ cuttoff <- mean(model2.data$.cooksd)*3
 # looking at observations with cook's distance above cutoff
 View(model2.data %>% filter(.cooksd>cuttoff))
 ```
-
+Influential points identified via the Cook's Distance threshold were left in the model due to data integrity and all values for the outliers seemed reasonable. 
 
 ## Effect Modification by Sex
 ```{r}
 # model with interaction term between sex and active transport
-model_em <- glm(diabetes ~ act_transport + age_cat2 + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time + sex*act_transport, data=cohort_complete, family="binomial")
+model_em <- glm(diabetes ~ act_transport + age_cat2 + sex + race + income + diff_walk + work_sch + phys_act + work_phys_act + sex*act_transport, data=cohort_complete, family="binomial")
 
 # comparing models
 lrtest(model_em,model2)
 
 ```
 
-The likelihood ratio test is not significant (p=0.1646). Therefore, there is no effect modification by sex. 
+The likelihood ratio test is not significant (p=0.2884). Therefore, there is no effect modification by sex. 
 
-## Looking at fasting glucose 
+## Exploration - Looking at fasting glucose 
 ```{r}
+# bringing in fasting glucose data
+nhanes_glucose <- nhanes_load_data("GLU_J", "2017-2018")
+
 # adding glucose information
 cohort_complete_glu <- left_join(cohort_complete,nhanes_glucose, by = "SEQN")
 
@@ -549,11 +488,14 @@ by(nondiabetes_cohort$LBXGLU, nondiabetes_cohort$act_transport, mean)
 by(nondiabetes_cohort$LBXGLU, nondiabetes_cohort$act_transport, median)
 ```
 
-The mean fasting glucose for those with diabetes is higher among those that report active transportation (174.5) than those that do not (158.5). The median fasting glucose is higher as well (154 versus 144).
-For those that do not have diabetes, the mean fasting glucose among those that report active transportation is lower (103.4) than those that do not (105.3). The median is slightly lower as well (100.5 versus 102).
+The mean fasting glucose for those with diabetes is higher among those that report active transportation than those that do not (173. 8 versus 158.3). The median fasting glucose is higher as well (154 versus 144).
+For those that do not have diabetes, the mean fasting glucose among those that report active transportation is lower than those that do not (103.4 versus 105.3). The median is slightly lower as well (101 versus 102).
 
-## Looking at A1C 
+## Exploration - Looking at A1C 
 ```{r}
+# bringing in fasting glucose data
+nhanes_a1c <- nhanes_load_data("GHB_J", "2017-2018") 
+
 # adding a1c information
 cohort_complete_a1c <- left_join(cohort_complete,nhanes_a1c, by = "SEQN")
 
@@ -572,8 +514,8 @@ by(nondiabetes_cohort$LBXGH, nondiabetes_cohort$act_transport, mean)
 by(nondiabetes_cohort$LBXGH, nondiabetes_cohort$act_transport, median)
 ```
 
-The mean A1C for those with diabetes is slightly higher among those that report active transportation (7.7) than those that do not (7.3). The median fasting glucose is higher as well (7.2 versus 6.9).
-For those that do not have diabetes, the mean A1C among those that report active transportation is just slightly lower (5.5) than those that do not (5.6). The median is slightly lower as well (5.4 versus 5.5).
+The mean A1C for those with diabetes is slightly higher among those that report active transportation (7.7) than those that do not (7.7 versus 7.3). The median fasting glucose is higher as well (7.2 versus 6.9).
+For those that do not have diabetes, the mean A1C among those that report active transportation is just slightly lower than those that do not (5.5 versus 5.6). The median is slightly lower as well (5.4 versus 5.5).
 
 
 # Multiple Imputation
@@ -586,7 +528,7 @@ For those that do not have diabetes, the mean A1C among those that report active
 ## selecting variables needed for multiple imputation
 cohort_imp <- nhanes_clean %>%
   drop_na(diabetes, act_transport) %>%
-  select(SEQN, age, sex, race, educat, income, health_status, diff_walk, work_sch, smoker, phys_act, work_phys_act, sleep_time, diabetes, act_transport, income_underover)
+  select(SEQN, age, sex, race, educat, income, diff_walk, work_sch, phys_act, work_phys_act, diabetes, act_transport, income_underover)
 
 # looking at missing data pattern
 md.pattern(cohort_imp, rotate.names=TRUE)
@@ -605,19 +547,14 @@ imp
 ```{r}
 # checking variables that were imputed
 imp$imp$income
-imp$imp$health_status
 imp$imp$diff_walk
 imp$imp$work_sch
 imp$imp$phys_act
 imp$imp$work_phys_act
-imp$imp$sleep_time
 
 # Checking distribution between imputed data and non-imputed data
 #income
 stripplot(x=imp, data=income~.imp, jit=TRUE,  pch=20,  xlab="1=Non-missing, Imputation number")
-
-# health status
-stripplot(x=imp, data=health_status~.imp, jit=TRUE,  pch=20,  xlab="1=Non-missing, Imputation number")
 
 # difficulty walking
 stripplot(x=imp, data=diff_walk~.imp, jit=TRUE,  pch=20,  xlab="1=Non-missing, Imputation number")
@@ -631,8 +568,6 @@ stripplot(x=imp, data=phys_act~.imp, jit=TRUE,  pch=20,  xlab="1=Non-missing, Im
 # work physical activity
 stripplot(x=imp, data=work_phys_act~.imp, jit=TRUE,  pch=20,  xlab="1=Non-missing, Imputation number")
 
-# sleep time
-stripplot(x=imp, data=sleep_time~.imp, jit=TRUE,  pch=20,  xlab="1=Non-missing, Imputation number")
 
 ```
 
@@ -667,7 +602,7 @@ imp2 <- as.mids(longimp)
 
 #### Logistic Regression on Imputed Data
 ```{r}
-model_imp <- with(imp2, glm(diabetes ~ act_transport + age_cat2 + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time, family="binomial"))
+model_imp <- with(imp2, glm(diabetes ~ act_transport + age_cat2 + sex + race + income + + diff_walk + work_sch + phys_act + work_phys_act, family="binomial"))
 
 summary(model_imp)
 
@@ -688,13 +623,13 @@ write.xlsx(DF_imp, file="imputed_analysis_tables.xlsx", keepNA=TRUE, overwrite=T
 #### Effect Modification by sex
 ```{r}
 # model with interaction term between sex and active transport
-model_imp_em <- with(imp2, glm(diabetes ~ act_transport + age_cat2 + sex + race + income + health_status + diff_walk + work_sch + smoker + phys_act + work_phys_act + sleep_time + sex*act_transport, family="binomial"))
+model_imp_em <- with(imp2, glm(diabetes ~ act_transport + age_cat2 + sex + race + income + diff_walk + work_sch + phys_act + work_phys_act + sex*act_transport, family="binomial"))
 
 # comparing models with likelihood-ratio test statistic
 D3(model_imp_em,model_imp)
 ```
 
-The p-value of likelihood-ratio test statistic is non-significant (p=.113). Therefore, no significant effect modification by sex. 
+The p-value of likelihood-ratio test statistic is non-significant (p=.17). Therefore, no significant effect modification by sex. 
 
 # Figure 1
 ```{r}
@@ -721,10 +656,9 @@ grViz("digraph flowchart {
       #This set of code provides the text in each rectangle box.
 
       [1]: 'Participants that answered the interview survey in the 2017-2018 cycle n=9,254'
-      [2]: 'Excluding 3,398 individuals without active transportation data n=5,856'
+      [2]: 'Excluding 3,398 individuals that were under the age of 18 \\n and therefore not eligible for the active transportation question n=5,856'
       [3]: 'Excluding 4 individuals with missing data on diabetes question n=5,852'
       ")
-
 
 ```
 
