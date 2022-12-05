@@ -256,7 +256,7 @@ cohort <- nhanes_clean %>%
 # adding labels for table
 label(cohort$age)<-"Age (years)"
 label(cohort$sex)<-"Sex"
-label(cohort$race)<-"Race"
+label(cohort$race)<-"Race/Ethnicity"
 label(cohort$income)<-"Income"
 label(cohort$diff_walk)<-"Has difficulty walking"
 label(cohort$work_sch)<- "Work Schedule"
@@ -299,7 +299,14 @@ Difference are very slight. It looks like there is a slightly higher percentage 
 
 ## Initial logistic regression model
 ```{r}
-# non-imputed model
+# unadjusted model
+model_un<- glm(diabetes ~ act_transport, data=cohort_complete, family="binomial")
+summary(model_un) # get log results
+
+Df_un <- odds.n.ends(model_un) # get OR results
+r_un <- as.data.frame(Df_un$`Predictor odds ratios and 95% CI`)
+
+# non-imputed adjusted model
 model1<- glm(diabetes ~ act_transport + age + sex + race + income + diff_walk + work_sch + phys_act + work_phys_act, data=cohort_complete, family="binomial")
 summary(model1) # get log results
 
@@ -390,7 +397,7 @@ table(cohort$age_cat, cohort$age_cat2, useNA = "always")
 label(cohort$act_transport)<-"Active Transportation"
 label(cohort$age_cat2)<-"Age category (years)"
 label(cohort$sex)<-"Sex"
-label(cohort$race)<-"Race"
+label(cohort$race)<-"Race/Ethnicity"
 label(cohort$income)<-"Income"
 label(cohort$diff_walk)<-"Has difficulty walking"
 label(cohort$work_sch)<- "Work Schedule"
@@ -534,7 +541,7 @@ cohort_imp <- nhanes_clean %>%
 md.pattern(cohort_imp, rotate.names=TRUE)
 ```
 
-#### Perfomring the Multiple Imputation
+#### Performing the Multiple Imputation
 ```{r}
 # performing multiple imputation
 imp<-mice(cohort_imp, m=15, maxit=5, seed=219) 
