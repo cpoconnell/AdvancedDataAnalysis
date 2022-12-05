@@ -299,14 +299,14 @@ Difference are very slight. It looks like there is a slightly higher percentage 
 
 ## Initial logistic regression model
 ```{r}
-# unadjusted model
-model_un<- glm(diabetes ~ act_transport, data=cohort_complete, family="binomial")
+# unadjusted model using full cohort
+model_un<- glm(diabetes ~ act_transport, data=cohort, family="binomial")
 summary(model_un) # get log results
 
 Df_un <- odds.n.ends(model_un) # get OR results
 r_un <- as.data.frame(Df_un$`Predictor odds ratios and 95% CI`)
 
-# non-imputed adjusted model
+# non-imputed adjusted model using complete case
 model1<- glm(diabetes ~ act_transport + age + sex + race + income + diff_walk + work_sch + phys_act + work_phys_act, data=cohort_complete, family="binomial")
 summary(model1) # get log results
 
