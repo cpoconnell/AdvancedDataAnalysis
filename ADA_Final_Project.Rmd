@@ -90,7 +90,7 @@ nhanes_small <- merged_file %>%
 nhanes_clean <- nhanes_small %>%
   mutate(diabetes = case_when(DIQ010 == 1 ~ 1,
                               DIQ010 == 2 ~ 0,
-                              DIQ010 == 3 ~ 0, # borderline classified with No
+                              DIQ010 == 3 ~ 0, # borderline classified as No
                               DIQ010 == 7 ~ NA_real_,
                               DIQ010 == 9 ~ NA_real_)) %>%
   mutate(diabetes = factor(diabetes, c(0:1), c("No", "Yes"))) %>%
@@ -270,7 +270,7 @@ label(cohort$diabetes)<-"Diabetes Status"
 table1(~ age + sex + race + income + diff_walk + work_sch + phys_act + work_phys_act + diabetes | act_transport, data = cohort, render.continuous = c(. = 'Mean (SD)'))
 ```
 
-## Dropping Missing Data for covariates
+## Dropping Missing Data for covariates for complete case analysis before multiple imputation
 ```{r}
 # dropping NA's for covariates needed for the model 
 cohort_complete <- cohort %>%
@@ -291,8 +291,10 @@ cohort_complete %>%
   theme_minimal() + 
   labs(y = "Percent in each group",
        x = "\nActive Transportation",
+       title = "Diabetes status by active transportation",
        fill = "Diabetes Status") + 
-  ylim(0,100)
+  ylim(0,100) +
+  scale_fill_brewer(palette = "Accent") 
 ```
 
 Difference are very slight. It looks like there is a slightly higher percentage of those with diabetes in the participant group that reported no active transportation. 
@@ -377,7 +379,7 @@ table(cohort$work_phys_act, cohort$diabetes, useNA = "always")
 Those 18-29 that have diabetes only has 8 observations. Therefore, age categories need to collapse. 
 The rest all have at least 10 observations. 
 
-#### Collapsing categories for age_cat and health status due to few too observations
+#### Collapsing categories for age_cat due to few too observations
 ```{r}
 cohort <- cohort %>%
   mutate(age_cat2 = case_when(age_cat %in% c("18-29","30-39") ~ 0,
@@ -404,17 +406,17 @@ label(cohort$work_sch)<- "Work Schedule"
 label(cohort$phys_act)<- "Recreational Physical Activity Level"
 label(cohort$work_phys_act)<- "Work Physical Activity Level"
 
-table1(~ age_cat2 + sex + race + income + diff_walk + work_sch + phys_act + work_phys_act + diabetes | act_transport, data = cohort)
+table1(~ age_cat2 + sex + race + income + diff_walk + work_sch + phys_act + work_phys_act + diabetes | act_transport, data = cohort, rowlabelhead="Variable")
 
 # first half for PowerPoint slide 1
-table1(~ age_cat2 + sex + race + income | act_transport, data = cohort)
+table1(~ age_cat2 + sex + race + income | act_transport, data = cohort, rowlabelhead="Variable")
 
 # second half for PowerPoint slide 2
-table1(~ diff_walk + work_sch + phys_act + work_phys_act + diabetes | act_transport, data = cohort)
+table1(~ diff_walk + work_sch + phys_act + work_phys_act + diabetes | act_transport, data = cohort, rowlabelhead="Variable")
 
 ```
 
-## New model with categorical age and collapsed health status
+## New model with categorical age
 ```{r}
 # dropping na's for complete case model
 cohort_complete <- cohort %>%
@@ -456,7 +458,7 @@ head(model2.data)
 # defines cutoff variable
 cuttoff <- mean(model2.data$.cooksd)*3 
 # looking at observations with cook's distance above cutoff
-View(model2.data %>% filter(.cooksd>cuttoff))
+#View(model2.data %>% filter(.cooksd>cuttoff))
 ```
 Influential points identified via the Cook's Distance threshold were left in the model due to data integrity and all values for the outliers seemed reasonable. 
 
@@ -521,7 +523,7 @@ by(nondiabetes_cohort$LBXGH, nondiabetes_cohort$act_transport, mean)
 by(nondiabetes_cohort$LBXGH, nondiabetes_cohort$act_transport, median)
 ```
 
-The mean A1C for those with diabetes is slightly higher among those that report active transportation (7.7) than those that do not (7.7 versus 7.3). The median fasting glucose is higher as well (7.2 versus 6.9).
+The mean A1C for those with diabetes is slightly higher among those that report active transportation than those that do not (7.7 versus 7.3). The median fasting glucose is higher as well (7.2 versus 6.9).
 For those that do not have diabetes, the mean A1C among those that report active transportation is just slightly lower than those that do not (5.5 versus 5.6). The median is slightly lower as well (5.4 versus 5.5).
 
 
