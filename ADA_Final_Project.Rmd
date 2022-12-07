@@ -656,17 +656,19 @@ grViz("digraph flowchart {
       
       # nodes indicate how many boxes you will have in your diagram.
       
-      tab1 [label = '@@1'] # starting
-      tab2 [label = '@@2'] # exclusion 1
-      tab3 [label = '@@3'] # exclusion 2
+      tab1 [label = '@@1'] # starting NHANES sample
+      tab2 [label = '@@2'] # Participants that responded to survey
+      tab3 [label = '@@3'] # exclusion 1
+      tab4 [label = '@@4'] # exclusion 2
       
-      tab1 -> tab2 -> tab3 
+      tab1 -> tab2 -> tab3 -> tab4
 }
       #This set of code provides the text in each rectangle box.
 
-      [1]: 'Participants that answered the interview survey in the 2017-2018 cycle n=9,254'
-      [2]: 'Excluding 3,398 individuals that were under the age of 18 \\n and therefore not eligible for the active transportation question n=5,856'
-      [3]: 'Excluding 4 individuals with missing data on diabetes question n=5,852'
+      [1]: '16,211 persons randomly selected for participation in NHANES 2017-2018 cycle'
+      [2]: 'Participants that answered the interview survey in the 2017-2018 cycle n=9,254'
+      [3]: 'Excluding 3,398 individuals that were under the age of 18 \\n and therefore not eligible for the active transportation question n=5,856'
+      [4]: 'Excluding 4 individuals with missing data on diabetes question n=5,852'
       ")
 
 ```
