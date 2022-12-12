@@ -673,4 +673,39 @@ grViz("digraph flowchart {
 
 ```
 
+## Response to Reviewers
+#### Question/Comment 1
+1. Describe whether you think income is likely to be MNAR.  Compare people with and without missing income on active transportation, diabetes, and three demographic characteristics of your choice using the table1 function (i.e. table1(~active transportation + diabetes + dem1 + dem2 + dem3|missing_income (yes, no), df). Comment on how they differ. 
+```{r}
+# creating missing_income variable
+cohort <- cohort %>%
+  mutate(missing_income = if_else(is.na(income),1,0)) %>%
+  mutate(missing_income = factor(missing_income, levels = c(0:1), labels = c("No","Yes")))
+
+# checking coding
+summary(cohort$missing_income)
+table(cohort$income, cohort$missing_income, useNA = "always")
+
+# comparing those with missing income and those that do not
+table1(~ act_transport + diabetes + sex + age_cat2 + race | missing_income, data = cohort)
+
+```
+
+#### Question/Comment 2
+2. Examine whether age (categorized according to your choice) modifies the association. Report the results.
+```{r}
+## Analysis with complete case data
+# model with interaction term between age_cat2 and active transport
+model_em_age <- glm(diabetes ~ act_transport + age_cat2 + sex + race + income + diff_walk + work_sch + phys_act + work_phys_act + age_cat2*act_transport, data=cohort_complete, family="binomial")
+
+# comparing models
+lrtest(model_em_age,model2)
+
+## Analysis with imputed data
+# model with interaction term between age_cat2 and active transport
+model_imp_em_age <- with(imp2, glm(diabetes ~ act_transport + age_cat2 + sex + race + income + diff_walk + work_sch + phys_act + work_phys_act + age_cat2*act_transport, family="binomial"))
+
+# comparing models with likelihood-ratio test statistic
+D3(model_imp_em_age,model_imp)
+```
 
